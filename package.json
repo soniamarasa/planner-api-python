@@ -1,0 +1,18 @@
+{
+  "name": "planner-api",
+  "version": "1.0.0",
+  "description": "",
+  "main": "main.py",
+  "scripts": {
+    "start": "c:/Users/Public/Documents/Projetos/planner-api/.venv/Scripts/python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 3001 --reload",
+    "start:prod": "c:/Users/Public/Documents/Projetos/planner-api/.venv/Scripts/python.exe -m uvicorn app.main:app --host 0.0.0.0 --port 3001",
+    "db:migrate": "c:/Users/Public/Documents/Projetos/planner-api/.venv/Scripts/python.exe -m alembic upgrade head",
+    "db:revision": "c:/Users/Public/Documents/Projetos/planner-api/.venv/Scripts/python.exe -m alembic revision --autogenerate -m \"update schema\"",
+    "seed": "c:/Users/Public/Documents/Projetos/planner-api/.venv/Scripts/python.exe -m app.scripts.seed",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module"
+}
