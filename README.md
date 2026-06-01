@@ -2,6 +2,14 @@
 
 Backend do planner reescrito em Python com FastAPI, SQLAlchemy e PostgreSQL no Neon.
 
+## Migracao
+
+Este repositorio e a continuidade oficial do backend do planner em Python.
+
+Repositorio antigo em Node.js:
+
+- https://github.com/soniamarasa/planner-api
+
 ## Stack
 
 - FastAPI
@@ -35,4 +43,4 @@ Credenciais demo:
 
 ## Observacao
 
-Arquivos antigos em Node.js podem existir temporariamente no repositorio como legado de migracao, mas o runtime atual da API e o schema do banco estao em Python.
+O backend ativo e mantido deste projeto e o Python/FastAPI. O repositorio antigo em Node.js foi preservado apenas como referencia historica.
