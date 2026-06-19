@@ -3,10 +3,11 @@ from uuid import UUID
 
 from fastapi import HTTPException, status
 from sqlalchemy import or_, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.models.item import Item
 from app.schemas.item import ItemCreate, ItemUpdate
+from app.services.projects_service import validate_project_id
 from app.services.week_utils import (
     EVERGREEN_WHERE,
     get_week_end,
@@ -55,12 +56,16 @@ def list_planner_items(db: Session, user_id: UUID, week_start: date | None = Non
 
     return list(
         db.scalars(
-            select(Item).where(Item.user_id == user_id, query_filter).order_by(Item.scheduled_date, Item.description)
+            select(Item)
+            .options(selectinload(Item.project))
+            .where(Item.user_id == user_id, query_filter)
+            .order_by(Item.scheduled_date, Item.description)
         ).all()
     )
 
 
 def apply_item_fields(
+    db: Session,
     item: Item,
     payload: ItemCreate | ItemUpdate,
     week_start: date | None = None,
@@ -79,8 +84,16 @@ def apply_item_fields(
     if payload.scheduled_date is not None or resolved_week_start is not None or item.where:
         item.scheduled_date = resolve_scheduled_date(item.where, resolved_week_start, payload.scheduled_date)
 
+    if isinstance(payload, ItemCreate):
+        validate_project_id(db, item.user_id, payload.project_id)
+        item.project_id = payload.project_id
+    elif "project_id" in payload.model_fields_set:
+        validate_project_id(db, item.user_id, payload.project_id)
+        item.project_id = payload.project_id
+
 
 def create_items(db: Session, user_id: UUID, payload: ItemCreate) -> list[Item]:
+    validate_project_id(db, user_id, payload.project_id)
     where_values = payload.where if isinstance(payload.where, list) else [payload.where]
     created_items: list[Item] = []
 
@@ -98,6 +111,7 @@ def create_items(db: Session, user_id: UUID, payload: ItemCreate) -> list[Item]:
             important=False,
             canceled=False,
             estimated_pomodoros=payload.estimated_pomodoros if payload.estimated_pomodoros is not None else 1.0,
+            project_id=payload.project_id,
         )
         db.add(item)
         created_items.append(item)
@@ -121,6 +135,12 @@ def reschedule_item(db: Session, item: Item, scheduled_date: date, where: str | 
     item.scheduled_date = scheduled_date
     item.where = where or where_for_scheduled_date(week_start, scheduled_date) or item.where
     return item
+
+
+def get_item_with_project(db: Session, item_id: UUID) -> Item | None:
+    return db.scalars(
+        select(Item).options(selectinload(Item.project)).where(Item.id == item_id)
+    ).first()
 
 
 def clear_week_items(db: Session, user_id: UUID, week_start: date) -> int:

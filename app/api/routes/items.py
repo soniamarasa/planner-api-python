@@ -3,7 +3,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.api.deps import get_current_user, get_db_session
 from app.models.item import Item
@@ -22,6 +22,7 @@ from app.services.items_service import (
     apply_item_fields,
     clear_week_items,
     create_items,
+    get_item_with_project,
     list_planner_items,
     reschedule_item,
 )
@@ -44,7 +45,14 @@ def get_items(
     settings = get_or_create_settings(db, user_id)
     today = date.today()
     if all_items:
-        items = list(db.scalars(select(Item).where(Item.user_id == user_id).order_by(Item.scheduled_date, Item.description)).all())
+        items = list(
+            db.scalars(
+                select(Item)
+                .options(selectinload(Item.project))
+                .where(Item.user_id == user_id)
+                .order_by(Item.scheduled_date, Item.description)
+            ).all()
+        )
     else:
         resolved_week_start = week_start or get_week_start(today)
         items = list_planner_items(db, user_id, resolved_week_start)
@@ -116,11 +124,11 @@ def edit_item(
     resolved_week_start = week_start or payload.week_start or (
         get_week_start(item.scheduled_date) if item.scheduled_date else get_week_start()
     )
-    apply_item_fields(item, payload, resolved_week_start)
+    apply_item_fields(db, item, payload, resolved_week_start)
 
     db.add(item)
     db.commit()
-    db.refresh(item)
+    item = get_item_with_project(db, item_id) or item
     settings = get_or_create_settings(db, user_id)
     return build_item_response(item, settings.work_minutes)
 
@@ -144,7 +152,7 @@ def reschedule_item_route(
     reschedule_item(db, item, payload.scheduled_date, payload.where, resolved_week_start)
     db.add(item)
     db.commit()
-    db.refresh(item)
+    item = get_item_with_project(db, item_id) or item
     settings = get_or_create_settings(db, user_id)
     return build_item_response(item, settings.work_minutes)
 
@@ -170,7 +178,7 @@ def update_status(
 
     db.add(item)
     db.commit()
-    db.refresh(item)
+    item = get_item_with_project(db, item_id) or item
     settings = get_or_create_settings(db, user_id)
     return build_item_response(item, settings.work_minutes)
 

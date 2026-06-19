@@ -18,6 +18,7 @@ class User(Base):
     gender: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
     items = relationship("Item", back_populates="user", cascade="all, delete-orphan")
+    projects = relationship("Project", back_populates="user", cascade="all, delete-orphan")
     focus_settings = relationship(
         "FocusSettings",
         back_populates="user",

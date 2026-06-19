@@ -15,6 +15,7 @@ class ItemBase(BaseModel):
     estimated_pomodoros: float | None = Field(default=1.0, ge=0.1, le=100)
     week_start: date | None = None
     scheduled_date: date | None = None
+    project_id: UUID | None = None
 
 
 class ItemCreate(ItemBase):
@@ -57,6 +58,10 @@ class ItemResponse(BaseModel):
     pomodoros_completed: float = 0.0
     task_focus_progress: float = 0.0
     is_overdue: bool = False
+    project_id: UUID | None = None
+    project_name: str | None = None
+    project_icon: str | None = None
+    project_color: str | None = None
 
 
 def build_item_response(item: Item, work_minutes: int = 25, today: date | None = None) -> ItemResponse:
@@ -92,6 +97,10 @@ def build_item_response(item: Item, work_minutes: int = 25, today: date | None =
             item.where,
             today,
         ),
+        project_id=item.project_id,
+        project_name=item.project.name if item.project else None,
+        project_icon=item.project.icon if item.project else None,
+        project_color=item.project.color if item.project else None,
     )
 
 
