@@ -7,7 +7,7 @@ from sqlalchemy import engine_from_config, pool
 
 from app.core.config import settings
 from app.db.base import Base
-from app.models import item, user
+from app.models import focus_settings, item, pomodoro_session, user
 
 config = context.config
 config.set_main_option(

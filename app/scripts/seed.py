@@ -4,6 +4,7 @@ from sqlalchemy import select
 
 from app.core.security import get_password_hash
 from app.db.session import SessionLocal
+from app.models.focus_settings import FocusSettings
 from app.models.item import Item
 from app.models.user import User
 
@@ -28,6 +29,9 @@ def run() -> None:
         db.commit()
         db.refresh(user)
 
+        focus_settings = FocusSettings(user_id=user.id)
+        db.add(focus_settings)
+
         items = [
             Item(
                 user_id=user.id,
@@ -39,6 +43,7 @@ def run() -> None:
                 finished=False,
                 important=True,
                 canceled=False,
+                estimated_pomodoros=2.0,
             ),
             Item(
                 user_id=user.id,
