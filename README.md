@@ -26,9 +26,42 @@ Repositório antigo em Node.js:
 
 ## Executar
 
-1. Instale as dependências Python com `pip install -r requirements.txt`
-2. Rode as migrations com `npm run db:migrate`
-3. Suba a API com `npm start`
+Crie e ative um ambiente virtual e instale as dependências:
+
+```bash
+# Windows (PowerShell)
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+
+# Linux / macOS
+python3 -m venv .venv
+source .venv/bin/activate
+
+pip install -r requirements.txt
+```
+
+Com o ambiente ativo, rode as migrations e suba a API:
+
+```bash
+# migrations
+python -m alembic upgrade head
+
+# API (desenvolvimento, com reload)
+python -m uvicorn app.main:app --host 0.0.0.0 --port 3001 --reload
+```
+
+### Atalhos via Make (opcional)
+
+Se você tiver o `make` instalado, há atalhos equivalentes:
+
+```bash
+make install   # pip install -r requirements.txt
+make migrate   # alembic upgrade head
+make run       # uvicorn ... --reload
+make run-prod  # uvicorn ... (sem reload)
+make seed      # popula dados de desenvolvimento
+make           # lista todos os comandos
+```
 
 Documentação interativa:
 
@@ -40,7 +73,7 @@ Healthcheck:
 
 ## Seed de Desenvolvimento
 
-Execute `npm run seed` para criar um usuário demo e alguns itens iniciais.
+Execute `python -m app.scripts.seed` (ou `make seed`) para criar um usuário demo e alguns itens iniciais.
 
 Credenciais demo:
 
