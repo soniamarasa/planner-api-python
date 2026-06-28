@@ -3,6 +3,12 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 
+class SoundLayer(BaseModel):
+    id: str = Field(max_length=50)
+    volume: float = Field(ge=0.0, le=1.0)
+    density: float | None = Field(default=None, ge=0.0, le=1.0)
+
+
 class FocusSettingsUpdate(BaseModel):
     work_minutes: int | None = Field(default=None, ge=1, le=180)
     short_break_minutes: int | None = Field(default=None, ge=1, le=60)
@@ -10,6 +16,7 @@ class FocusSettingsUpdate(BaseModel):
     long_break_interval: int | None = Field(default=None, ge=1, le=20)
     ambient_sound: str | None = Field(default=None, max_length=50)
     sound_volume: float | None = Field(default=None, ge=0.0, le=1.0)
+    ambient_mix: list[SoundLayer] | None = Field(default=None, max_length=5)
     background_id: str | None = Field(default=None, max_length=50)
     auto_start_breaks: bool | None = None
     auto_start_focus: bool | None = None
@@ -27,6 +34,7 @@ class FocusSettingsResponse(BaseModel):
     long_break_interval: int
     ambient_sound: str
     sound_volume: float
+    ambient_mix: list[SoundLayer]
     background_id: str
     auto_start_breaks: bool
     auto_start_focus: bool

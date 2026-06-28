@@ -46,6 +46,24 @@ def update_settings(db: Session, user_id: UUID, payload: FocusSettingsUpdate) ->
     return settings
 
 
+def abandon_active_sessions_for_item(db: Session, user_id: UUID, item_id: UUID) -> None:
+    """Closes any running/paused session tied to an item. Called when a task is
+    finished or canceled so it doesn't leave a dangling, unresolvable session."""
+    sessions = db.scalars(
+        select(PomodoroSession).where(
+            PomodoroSession.user_id == user_id,
+            PomodoroSession.item_id == item_id,
+            PomodoroSession.status.in_(ACTIVE_STATUSES),
+        )
+    ).all()
+    now = datetime.now(UTC)
+    for session in sessions:
+        session.status = "abandoned"
+        session.ended_at = now
+        session.paused_at = None
+        db.add(session)
+
+
 def get_active_session(db: Session, user_id: UUID) -> PomodoroSession | None:
     return db.scalar(
         select(PomodoroSession)
@@ -66,12 +84,21 @@ def get_session_for_user(db: Session, user_id: UUID, session_id: UUID) -> Pomodo
     return session
 
 
-def get_task_item(db: Session, user_id: UUID, item_id: UUID) -> Item:
+def get_owned_item(db: Session, user_id: UUID, item_id: UUID) -> Item:
+    """Fetches an item enforcing only ownership. Used for transitions on an
+    existing session, which must keep working even if the task was later
+    finished or canceled."""
     item = db.get(Item, item_id)
     if not item:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item not found.")
     if item.user_id != user_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You do not have permission to access this item.")
+    return item
+
+
+def get_task_item(db: Session, user_id: UUID, item_id: UUID) -> Item:
+    """Fetches an item enforcing the rules required to START a pomodoro."""
+    item = get_owned_item(db, user_id, item_id)
     if item.type != "task":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Pomodoro is only available for tasks.")
     if item.finished or item.canceled:
@@ -177,7 +204,7 @@ def pause_session(db: Session, user_id: UUID, session_id: UUID, elapsed_seconds:
     if session.status != "running":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only running sessions can be paused.")
 
-    item = get_task_item(db, user_id, session.item_id)
+    item = get_owned_item(db, user_id, session.item_id)
     credit_focus_time(session, item, elapsed_seconds)
     session.status = "paused"
     session.paused_at = datetime.now(UTC)
@@ -195,7 +222,7 @@ def resume_session(db: Session, user_id: UUID, session_id: UUID) -> PomodoroSess
     if session.status != "paused":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only paused sessions can be resumed.")
 
-    item = get_task_item(db, user_id, session.item_id)
+    item = get_owned_item(db, user_id, session.item_id)
     session.status = "running"
     session.paused_at = None
 
@@ -210,7 +237,7 @@ def sync_session(db: Session, user_id: UUID, session_id: UUID, elapsed_seconds: 
     if session.status != "running":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only running sessions can be synced.")
 
-    item = get_task_item(db, user_id, session.item_id)
+    item = get_owned_item(db, user_id, session.item_id)
     credit_focus_time(session, item, elapsed_seconds)
 
     db.add(session)
@@ -226,7 +253,7 @@ def complete_session(db: Session, user_id: UUID, session_id: UUID, elapsed_secon
     if session.status not in ACTIVE_STATUSES:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Session is already finished.")
 
-    item = get_task_item(db, user_id, session.item_id)
+    item = get_owned_item(db, user_id, session.item_id)
     final_elapsed = min(max(elapsed_seconds, session.elapsed_seconds), session.target_seconds)
     credit_focus_time(session, item, final_elapsed)
     session.status = "completed"
@@ -252,7 +279,7 @@ def abandon_session(
     if session.status not in ACTIVE_STATUSES:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Session is already finished.")
 
-    item = get_task_item(db, user_id, session.item_id)
+    item = get_owned_item(db, user_id, session.item_id)
     close_active_session(db, session, item, elapsed_seconds, "abandoned", credit_partial)
 
     db.commit()

@@ -17,7 +17,7 @@ from app.schemas.item import (
     MessageResponse,
     build_item_response,
 )
-from app.services.focus_service import get_or_create_settings
+from app.services.focus_service import abandon_active_sessions_for_item, get_or_create_settings
 from app.services.items_service import (
     apply_item_fields,
     clear_week_items,
@@ -175,6 +175,9 @@ def update_status(
         value = getattr(payload, field)
         if value is not None:
             setattr(item, field, value)
+
+    if item.finished or item.canceled:
+        abandon_active_sessions_for_item(db, user_id, item_id)
 
     db.add(item)
     db.commit()
